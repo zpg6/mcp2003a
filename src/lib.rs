@@ -20,34 +20,57 @@
 //! # Example
 //!
 //! ```no_run
-//! use mcp2003a::{LinBusConfig, LinBusSpeed, LinBreakDuration, LinReadDeviceResponseTimeout, LinInterFrameSpace, Mcp2003a};
-//!
-//! // Configure the LIN bus
-//! let mcp2003a_config = LinBusConfig {
-//!    speed: LinBusSpeed::Baud19200,
-//!    break_duration: LinBreakDuration::Minimum13Bits,
-//!    read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(1),
-//!    inter_frame_space: LinInterFrameSpace::DelayMilliseconds(1),
+//! use mcp2003a::{
+//!     LinBusConfig,
+//!     LinBusSpeed,
+//!     LinBreakDuration,
+//!     LinReadDeviceResponseTimeout,
+//!     LinInterFrameSpace,
+//!     Mcp2003a,
 //! };
 //!
-//! // Create a new MCP2003A instance
-//! let mcp2003a = Mcp2003a::new(uart, break_pin, delay, mcp2003a_config);
+//! let uart = // Your embedded-hal UART driver
+//! let break_pin = // Your embedded-hal GPIO output pin driver
+//! let delay_ns = // Your embedded-hal delay driver
 //!
-//! // Assuming a device with Command frame 0x00 and Feedback frame 0x01:
+//! let lin_bus_config = LinBusConfig {
+//!     speed: LinBusSpeed::Baud19200,
+//!     break_duration: LinBreakDuration::Minimum13Bits,
+//!     read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(1),
+//!     inter_frame_space: LinInterFrameSpace::DelayMilliseconds(1),
+//! };
 //!
-//! // Send a frame on the LIN bus
+//! let mut mcp2003a = Mcp2003a::new(uart, break_pin, delay_ns, lin_bus_config);
+//!
+//! // Read the feedback / diagnostic frame with Id 0x01:
+//! // - Id: 0x01
+//! // - Data: We provide an 8-byte buffer to store the data
+//! let mut data = [0u8; 8];
+//! match mcp2003a.read_frame(0x01, &mut data) {
+//!     Ok(len) => {
+//!         if len > 0 {
+//!             // Data is stored in the buffer
+//!         } else {
+//!             // No data received
+//!         }
+//!     },
+//!     Err(_) => {
+//!         // Error reading the frame
+//!     }
+//! }
+//!
+//! // Send a frame on the LIN bus to a device with Command frame of 0x00:
 //! // - Id: 0x00
 //! // - Data: [0x02, 0x03]
 //! // - Checksum: 0x04
-//! mcp2003a.send_frame(0x00, &[0x02, 0x03], 0x04).unwrap();
-//!
-//! // Read a frame from the LIN bus
-//! // - Id: 0x01
-//! // - Buffer: 11 bytes for sync, id, data(8), checksum
-//! let mut buffer = [0u8; 11];
-//! let len = mcp2003a.read_frame(0x01, &mut buffer).unwrap();
-//! println!("Read {} bytes: {:?}", len, &buffer[..len]);
-//! ```
+//! match mcp2003a.send_frame(0x00, &[0x02, 0x03], 0x04) {
+//!     Ok(_) => {
+//!         // Frame sent
+//!     },
+//!     Err(_) => {
+//!         // Error sending the frame
+//!     }
+//! }
 
 #![no_std]
 
