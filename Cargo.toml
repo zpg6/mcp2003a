@@ -2,7 +2,7 @@
 name = "mcp2003a"
 authors = ["Zach Grimaldi"]
 description = "Rust no_std LIN Bus communication using the MCP2003A LIN transceiver."
-version = "0.0.0"
+version = "0.0.1"
 edition = "2021"
 license = "MIT"
 
