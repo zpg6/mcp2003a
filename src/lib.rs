@@ -6,7 +6,8 @@
 //! and a GPIO output pin for the break signal.
 //!
 //! LIN (Local Interconnect Network) is a serial network protocol used in automotive and industrial applications.
-//! Most automobiles on the road today have several LIN bus networks for various systems like door locks, windows, and more.
+//! Most automobiles on the road today have several LIN bus networks for various systems like climate control,
+//! power windows, lighting, and more.
 //!
 //! # MCP2003A
 //!

@@ -1,10 +1,12 @@
 [package]
 name = "mcp2003a"
-authors = ["Zach Grimaldi"]
+version = "0.0.3"
 description = "Rust no_std LIN Bus communication using the MCP2003A LIN transceiver."
-version = "0.0.2"
 edition = "2021"
 license = "MIT"
+authors = ["Zach Grimaldi"]
+documentation = "https://docs.rs/mcp2003a"
+repository = "https://github.com/zpg6/mcp2003a"
 
 [dependencies]
 embedded-hal = "1.0.0"
