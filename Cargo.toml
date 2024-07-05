@@ -1,6 +1,6 @@
 [package]
 name = "mcp2003a"
-version = "0.0.6"
+version = "0.0.7"
 description = "Rust no_std LIN Bus communication using the MCP2003A LIN transceiver."
 edition = "2021"
 license = "MIT"

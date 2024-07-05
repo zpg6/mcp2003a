@@ -61,13 +61,15 @@ mcp2003a.send_wakeup();
 // Send a frame on the LIN bus to a device with Command frame of 0x00:
 // - Id: 0x00
 // - Data: [0x02, 0x03]
-// - Checksum: 0x04
-match mcp2003a.send_frame(0x00, &[0x02, 0x03], 0x04) {
-    Ok(_) => {
+// - Checksum: 0x05
+match mcp2003a.send_frame(0x00, &[0x02, 0x03], 0x05) {
+   Ok(frame) => {
         // Frame sent
-    },
-    Err(_) => {
+        log::info!("Sent data to LIN Id 0x00: {:?}", frame);
+    }
+    Err(e) => {
         // Error sending the frame
+        log::error!("Error sending frame 0x00: {:?}", e);
     }
 }
 
@@ -78,7 +80,7 @@ let mut data = [0u8; 8];
 match mcp2003a.read_frame(0x01, &mut data) {
     Ok(len) => {
         // Data is stored in the buffer
-        log::info!("Received data from LIN Id 0x07: {:?}", &data[..len]);
+        log::info!("Received data from LIN Id 0x01: {:?}", &data[..len]);
     }
     Err(e) => {
         // Error reading the frame
@@ -87,7 +89,7 @@ match mcp2003a.read_frame(0x01, &mut data) {
                 log::warn!("No response from frame 0x01... this device may be offline.");
             }
             _ => {
-                log::error!("Error reading frame: {:?}", e);
+                log::error!("Error reading frame 0x01: {:?}", e);
             }
         }
     }
