@@ -30,13 +30,11 @@ Here is an pseudo-code example of how to use to send and receive LIN frames with
 
 ```rust
 use mcp2003a::{
-    LinBreakDuration,
-    LinBusConfig,
-    LinBusSpeed,
-    LinReadDeviceResponseTimeout,
-    LinInterFrameSpace,
-    Mcp2003a,
-    Mcp2003aError,
+    config::{
+        LinBreakDuration, LinBusConfig, LinBusSpeed, LinInterFrameSpace,
+        LinReadDeviceResponseTimeout, LinWakeupDuration,
+    },
+    Mcp2003a, Mcp2003aError,
 };
 
 let uart = // Your embedded-hal-nb UART driver (usually same baudrate as LIN Bus)
