@@ -1,6 +1,6 @@
 [package]
 name = "mcp2003a"
-version = "0.0.4"
+version = "0.0.5"
 description = "Rust no_std LIN Bus communication using the MCP2003A LIN transceiver."
 edition = "2021"
 license = "MIT"
@@ -8,8 +8,8 @@ authors = ["Zach Grimaldi <zpg6@pitt.edu>"]
 documentation = "https://docs.rs/mcp2003a"
 repository = "https://github.com/zpg6/mcp2003a"
 categories = ["automotive", "embedded", "no-std", "hardware"]
-keywords = ["lin", "linbus", "mcp2003a", "embedded", "no-std", "hardware"]
+keywords = ["lin", "linbus", "mcp2003a", "embedded", "no-std"]
 
 [dependencies]
 embedded-hal = "1.0.0"
-embedded-io = "0.6.1"
+embedded-hal-nb = "1.0.0"

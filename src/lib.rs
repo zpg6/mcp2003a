@@ -18,66 +18,12 @@
 //! - [MCP2003A Product Page](https://www.microchip.com/wwwproducts/en/MCP2003A)
 //! - [MCP2003A Datasheet](https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/20002230G.pdf)
 //!
-//! # Example
-//!
-//! ```no_run
-//! use mcp2003a::{
-//!     LinBusConfig,
-//!     LinBusSpeed,
-//!     LinBreakDuration,
-//!     LinReadDeviceResponseTimeout,
-//!     LinInterFrameSpace,
-//!     Mcp2003a,
-//! };
-//!
-//! let uart = // Your embedded-hal UART driver
-//! let break_pin = // Your embedded-hal GPIO output pin driver
-//! let delay_ns = // Your embedded-hal delay driver
-//!
-//! let lin_bus_config = LinBusConfig {
-//!     speed: LinBusSpeed::Baud19200,
-//!     break_duration: LinBreakDuration::Minimum13Bits,
-//!     read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(1),
-//!     inter_frame_space: LinInterFrameSpace::DelayMilliseconds(1),
-//! };
-//!
-//! let mut mcp2003a = Mcp2003a::new(uart, break_pin, delay_ns, lin_bus_config);
-//!
-//! // Read the feedback / diagnostic frame with Id 0x01:
-//! // - Id: 0x01
-//! // - Data: We provide an 8-byte buffer to store the data
-//! let mut data = [0u8; 8];
-//! match mcp2003a.read_frame(0x01, &mut data) {
-//!     Ok(len) => {
-//!         if len > 0 {
-//!             // Data is stored in the buffer
-//!         } else {
-//!             // No data received
-//!         }
-//!     },
-//!     Err(_) => {
-//!         // Error reading the frame
-//!     }
-//! }
-//!
-//! // Send a frame on the LIN bus to a device with Command frame of 0x00:
-//! // - Id: 0x00
-//! // - Data: [0x02, 0x03]
-//! // - Checksum: 0x04
-//! match mcp2003a.send_frame(0x00, &[0x02, 0x03], 0x04) {
-//!     Ok(_) => {
-//!         // Frame sent
-//!     },
-//!     Err(_) => {
-//!         // Error sending the frame
-//!     }
-//! }
 
 #![no_std]
 
 use embedded_hal::delay::DelayNs;
 use embedded_hal::digital::OutputPin;
-use embedded_io::{Read as UartRead, Write as UartWrite};
+use embedded_hal_nb::serial::{Read as UartRead, Write as UartWrite};
 
 /// LIN Break Duration for the MCP2003A transceiver.
 /// The specification requires a minimum of 13 bits for the break signal, but the actual underlying
@@ -98,6 +44,15 @@ impl LinBreakDuration {
     }
 }
 
+/// LIN Wakeup Signal Duration for the MCP2003A transceiver.
+/// The specification requires a minimum of 250 microseconds for the wakeup signal.
+#[derive(Clone, Copy, Debug)]
+pub enum LinWakeupDuration {
+    Minimum250Microseconds,
+    Minimum250MicrosecondsPlus(u32),
+    Maximum5Milliseconds,
+}
+
 /// How long to wait after sending a read header before reading the response, allowing the slave device to respond.
 /// Typically this is a 1-10 ms delay but can vary by system.
 #[derive(Clone, Copy, Debug)]
@@ -114,12 +69,6 @@ pub enum LinInterFrameSpace {
     None,
     DelayMicroseconds(u32),
     DelayMilliseconds(u32),
-}
-
-impl Default for LinReadDeviceResponseTimeout {
-    fn default() -> Self {
-        LinReadDeviceResponseTimeout::DelayMilliseconds(1)
-    }
 }
 
 /// LIN Bus Speeds available for the MCP2003A transceiver in bits per second.
@@ -151,10 +100,35 @@ impl LinBusSpeed {
 /// Configuration for the LIN bus.
 #[derive(Clone, Copy, Debug)]
 pub struct LinBusConfig {
+    /// LIN Bus Speed / Baud Rate in bits per second.
     pub speed: LinBusSpeed,
+    /// Duration of the break signal at the beginning of a frame.
     pub break_duration: LinBreakDuration,
+    /// Duration of the wakeup signal at the beginning of communication.
+    pub wakeup_duration: LinWakeupDuration,
+    /// How long to wait after sending a read header before reading the response from the device.
     pub read_device_response_timeout: LinReadDeviceResponseTimeout,
+    /// How long to wait after sending a frame before sending the next frame.
     pub inter_frame_space: LinInterFrameSpace,
+}
+
+impl Default for LinBusConfig {
+    fn default() -> Self {
+        LinBusConfig {
+            speed: LinBusSpeed::Baud19200,
+            break_duration: LinBreakDuration::Minimum13Bits,
+            wakeup_duration: LinWakeupDuration::Minimum250Microseconds,
+            read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(2),
+            inter_frame_space: LinInterFrameSpace::DelayMilliseconds(1),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum Mcp2003aError<E> {
+    UartError(embedded_hal_nb::nb::Error<E>),
+    UartWriteNotReady,
+    LinDeviceNoResponse,
 }
 
 /// MCP2003A LIN Transceiver
@@ -189,71 +163,119 @@ where
     }
 
     /// Send a break signal on the LIN bus, pausing execution for at least 730 microseconds (13 bits).
-    fn send_break(&mut self) -> Result<(), E> {
+    fn send_break(&mut self) {
         // Calculate the duration of the break signal
         let bit_period_ns = self.config.speed.get_bit_period_ns();
         let break_duration_ns = self.config.break_duration.get_duration_ns(bit_period_ns);
 
-        // Set the break pin low to signal a break
-        self.break_pin.set_low().ok();
+        // Start the break
+        self.break_pin.set_high().unwrap();
 
-        // Delay
+        // Break for the duration based on baud rate
         self.delay.delay_ns(break_duration_ns);
 
-        // Set the break pin high to end the break
-        self.break_pin.set_high().ok();
-        Ok(())
+        // End the break
+        self.break_pin.set_low().unwrap();
+
+        // Break delimiter is 1 bit time
+        self.delay.delay_ns(bit_period_ns);
+    }
+
+    /// Send a wakeup signal on the LIN bus, pausing execution for at least 250 microseconds.
+    ///
+    /// Note: there is an additional delay of the configured wakeup duration after the wakeup signal
+    /// to ensure the bus devices are ready to receive frames after activation.
+    pub fn send_wakeup(&mut self) {
+        // Calculate the duration of the wakeup signal
+        let wakeup_duration_ns = match self.config.wakeup_duration {
+            LinWakeupDuration::Minimum250Microseconds => 250_000,
+            LinWakeupDuration::Minimum250MicrosecondsPlus(us) => 250_000 + us,
+            LinWakeupDuration::Maximum5Milliseconds => 5_000_000,
+        };
+
+        // Ensure the wakeup duration is less than 5 milliseconds
+        assert!(
+            wakeup_duration_ns <= 5_000_000,
+            "Wakeup duration must be less than 5 milliseconds"
+        );
+
+        // Start the wakeup signal
+        self.break_pin.set_high().unwrap();
+
+        // Wakeup for the duration
+        self.delay.delay_ns(wakeup_duration_ns);
+
+        // End the wakeup signal
+        self.break_pin.set_low().unwrap();
+
+        // Delay after wakeup signal
+        self.delay.delay_ns(wakeup_duration_ns);
     }
 
     /// Send a frame on the LIN bus with the given ID, data, and checksum.
-    pub fn send_frame(&mut self, id: u8, data: &[u8], checksum: u8) -> Result<(), E> {
+    /// The data length must be between 0 and 8 bytes.
+    ///
+    /// Note: Inter-frame space is applied after sending the frame.
+    pub fn send_frame(
+        &mut self,
+        id: u8,
+        data: &[u8],
+        checksum: u8,
+    ) -> Result<[u8; 11], Mcp2003aError<E>> {
+        // Calculate the length of the data
+        assert!(
+            data.len() <= 8 && data.len() > 0,
+            "Data length must be between 1 and 8 bytes"
+        );
+        let data_len = data.len();
+
         // Calculate the frame
-        let mut frame = [0u8; 10];
+        let mut frame = [0; 11];
 
         // This is the constant value to lead every frame with per the LIN specification.
         // In bits, this is "10101010" or "0x55" in hex.
         frame[0] = 0x55;
 
         frame[1] = id;
-        frame[2..(2 + data.len())].copy_from_slice(data);
-        frame[2 + data.len()] = checksum;
+        frame[2..2 + data_len].copy_from_slice(data);
+        frame[2 + data_len] = checksum;
 
         // Send the break signal
-        match self.send_break() {
-            Ok(_) => (),
-            Err(e) => return Err(e),
-        }
+        self.send_break();
 
         // Write the frame to the UART
-        match self.uart.write(&frame) {
-            Ok(_) => (),
-            Err(e) => return Err(e),
+        for byte in frame.iter() {
+            match self.uart.write(*byte) {
+                Ok(_) => (),
+                Err(e) => return Err(Mcp2003aError::UartError(e)),
+            }
         }
 
-        // Delay to ensure the frame is sent
+        // Inter-frame space delay
         match self.config.inter_frame_space {
             LinInterFrameSpace::None => (),
             LinInterFrameSpace::DelayMicroseconds(us) => self.delay.delay_ns(us as u32 * 1_000),
             LinInterFrameSpace::DelayMilliseconds(ms) => self.delay.delay_ns(ms as u32 * 1_000_000),
         }
 
-        Ok(())
+        Ok(frame)
     }
 
     /// Read a frame from the LIN bus with the given ID into the buffer.
     /// Returns the number of bytes read into the buffer.
-    pub fn read_frame(&mut self, id: u8, buffer: &mut [u8]) -> Result<usize, E> {
-        // Send the break signal
-        match self.send_break() {
-            Ok(_) => (),
-            Err(e) => return Err(e),
-        }
+    ///
+    /// Note: Inter-frame space is applied after reading the frame.
+    pub fn read_frame(&mut self, id: u8, buffer: &mut [u8]) -> Result<usize, Mcp2003aError<E>> {
+        // Send the break signal to notify the device of the start of a frame
+        self.send_break();
 
         // Write the header to UART
         let header = [0x55, id];
-        match self.uart.write(&header) {
-            Ok(_) => (),
-            Err(e) => return Err(e),
+        for byte in header.iter() {
+            match self.uart.write(*byte) {
+                Ok(_) => (),
+                Err(e) => return Err(Mcp2003aError::UartError(e)),
+            }
         }
 
         // Delay to ensure the header has time to be received and responded to
@@ -267,11 +289,16 @@ where
             }
         }
 
-        // Read the frame from UART
-        let len;
-        match self.uart.read(buffer) {
-            Ok(n) => len = n,
-            Err(e) => return Err(e),
+        // Read the response from the device
+        let mut len = 0;
+        while len < buffer.len() {
+            match self.uart.read() {
+                Ok(byte) => {
+                    buffer[len] = byte;
+                    len += 1;
+                }
+                Err(_) => break,
+            }
         }
 
         // Delay to ensure the frame is read
@@ -281,6 +308,41 @@ where
             LinInterFrameSpace::DelayMilliseconds(ms) => self.delay.delay_ns(ms as u32 * 1_000_000),
         }
 
+        if len == 0 {
+            return Err(Mcp2003aError::LinDeviceNoResponse);
+        }
+
         Ok(len)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_break_duration() {
+        let mut config = LinBusConfig {
+            speed: LinBusSpeed::Baud19200,
+            break_duration: LinBreakDuration::Minimum13Bits,
+            wakeup_duration: LinWakeupDuration::Minimum250Microseconds,
+            read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(2),
+            inter_frame_space: LinInterFrameSpace::DelayMilliseconds(1),
+        };
+
+        assert_eq!(config.break_duration.get_duration_ns(52_083), 677_079);
+
+        config.break_duration = LinBreakDuration::Minimum13BitsPlus(1);
+        assert_eq!(config.break_duration.get_duration_ns(52_083), 729_162);
+
+        config.break_duration = LinBreakDuration::Minimum13BitsPlus(2);
+        assert_eq!(config.break_duration.get_duration_ns(52_083), 781_245);
+    }
+
+    #[test]
+    fn test_speed() {
+        let speed = LinBusSpeed::Baud19200;
+        assert_eq!(speed.get_baud_rate(), 19200);
+        assert_eq!(speed.get_bit_period_ns(), 52_083);
     }
 }
