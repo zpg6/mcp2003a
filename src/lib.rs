@@ -36,7 +36,6 @@ pub enum Mcp2003aError<E> {
     UartError(embedded_hal_nb::nb::Error<E>),
     UartWriteNotReady,
     LinDeviceTimeoutNoResponse,
-    LinReadInvalidHeader([u8; 100]),
     LinReadInvalidChecksum,
 }
 
