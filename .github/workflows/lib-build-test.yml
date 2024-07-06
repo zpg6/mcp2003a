@@ -1,4 +1,4 @@
-name: Rust Build
+name: Build and Test Library
 
 on:
   push:
@@ -32,3 +32,6 @@ jobs:
 
       - name: Build project
         run: cargo build --release
+
+      - name: Test project
+        run: cargo test
