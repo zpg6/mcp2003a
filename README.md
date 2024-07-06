@@ -1,5 +1,7 @@
 # mcp2003a
 
+Embedded Rust Microchip MCP2003A LIN transceiver driver with embedded-hal traits for no-std environments.
+
 <br>
 <a href="https://crates.io/crates/mcp2003a">
     <img src="https://img.shields.io/crates/v/mcp2003a.svg" alt="Crates.io">
@@ -12,7 +14,7 @@
 </a>
 <br><br>
 
-Rust crate for basic `no_std` LIN Bus communications with MCP2003A LIN Transceiver. Uses `embedded-hal` digital traits for GPIO and `embedded-hal-nb` Serial traits for UART.
+Uses `embedded-hal` digital traits for GPIO and `embedded-hal-nb` Serial traits for UART.
 
 - `embedded-hal = "1.0.0"` - Major breaking changes versus 0.2.x implementations.
 - `embedded-hal-nb = "1.0.0"` - Additional non-blocking traits using `nb` crate underneath.
@@ -28,22 +30,33 @@ Full Documentation: [https://docs.rs/mcp2003a/latest/mcp2003a/](https://docs.rs/
 
 ## Usage
 
+Add the crate to your `Cargo.toml`:
+
 ```
 cargo add mcp2003a
 ```
 
-### Example
+Configure like so:
 
 ```rust
-let mut mcp2003a = Mcp2003a::new(uart2_driver, break_pin_driver, delay, lin_bus_config);
-```
+let lin_bus_config = LinBusConfig {
+    speed: LinBusSpeed::Baud19200,
+    break_duration: LinBreakDuration::Minimum13Bits,
+    wakeup_duration: LinWakeupDuration::Minimum250Microseconds,
+    read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(2),
+    inter_frame_space: LinInterFrameSpace::DelayMilliseconds(1),
+};
 
-Then you can use the `mcp2003a` instance to send and receive LIN frames.
+let mut mcp2003a = Mcp2003a::new(
+    uart2_driver,
+    break_pin_driver,
+    delay,
+    lin_bus_config
+);
 
-```rust
 mcp2003a.send_wakeup();
 
-mc2003a.send_frame(0x01, &[0x02, 0x03], 0x05).unwrap();
+mcp2003a.send_frame(0x01, &[0x02, 0x03], 0x05).unwrap();
 
 let mut read_buffer = [0u8; 11];
 let len = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
