@@ -1,6 +1,17 @@
 //! MCP2003A LIN Transceiver Library
 //!
-//! ⚠️ WORK IN PROGRESS
+//! <br>
+//! <a href="https://crates.io/crates/mcp2003a">
+//! <img src="https://img.shields.io/crates/v/mcp2003a.svg" alt="Crates.io">
+//! </a>
+//! <a href="https://docs.rs/mcp2003a">
+//! <img src="https://docs.rs/mcp2003a/badge.svg" alt="Documentation">
+//! </a>
+//! <a href="https://github.com/zpg6/mcp2003a">
+//! <img src="https://img.shields.io/badge/github-zpg6/mcp2003a-black" alt="GitHub Repo">
+//! </a>
+//! <br><br>
+//!
 //!
 //! This library provides an `embedded-hal` abstraction for the MCP2003A LIN transceiver using UART
 //! and a GPIO output pin for the break signal.
@@ -18,6 +29,21 @@
 //! - [MCP2003A Product Page](https://www.microchip.com/wwwproducts/en/MCP2003A)
 //! - [MCP2003A Datasheet](https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/20002230G.pdf)
 //!
+//! # Usage
+//! ```rust
+//! let mut mcp2003a = Mcp2003a::new(uart2_driver, break_pin_driver, delay, lin_bus_config);
+//! ```
+//! 
+//! Then you can use the `mcp2003a` instance to send and receive LIN frames.
+//! 
+//! ```rust
+//! mcp2003a.send_wakeup();
+//! 
+//! mc2003a.send_frame(0x01, &[0x02, 0x03], 0x05).unwrap();
+//! 
+//! let mut read_buffer = [0u8; 11];
+//! let len = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
+//! ```
 
 #![no_std]
 
