@@ -81,7 +81,8 @@ fn main() {
 
         // Read the feedback / diagnostic frame 0x01 from the LIN bus:
         // - LIN Id: 0x01 --> PID: 0xC1
-        // - Data: We provide an 8-byte buffer to store the data
+        // - Data: We provide an 11-byte buffer which includes 
+        //         [sync, id, ...up to 8 bytes of data..., checksum]
         let mut data = [0u8; 11];
         match mcp2003a.read_frame(0xC1, &mut data) {
             Ok(len) => {

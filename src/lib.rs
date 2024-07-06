@@ -30,13 +30,13 @@
 //! - [MCP2003A Datasheet](https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/20002230G.pdf)
 //!
 //! # Usage
-//! ```rust
+//! ```no_run
 //! let mut mcp2003a = Mcp2003a::new(uart2_driver, break_pin_driver, delay, lin_bus_config);
 //! ```
 //! 
 //! Then you can use the `mcp2003a` instance to send and receive LIN frames.
 //! 
-//! ```rust
+//! ```no_run
 //! mcp2003a.send_wakeup();
 //! 
 //! mc2003a.send_frame(0x01, &[0x02, 0x03], 0x05).unwrap();
