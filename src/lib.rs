@@ -23,7 +23,10 @@
 
 use embedded_hal::delay::DelayNs;
 use embedded_hal::digital::OutputPin;
-use embedded_hal_nb::serial::{Read as UartRead, Write as UartWrite};
+use embedded_hal_nb::{
+    nb::block,
+    serial::{Read as UartRead, Write as UartWrite},
+};
 
 pub mod config;
 use config::*;
@@ -32,7 +35,9 @@ use config::*;
 pub enum Mcp2003aError<E> {
     UartError(embedded_hal_nb::nb::Error<E>),
     UartWriteNotReady,
-    LinDeviceNoResponse,
+    LinDeviceTimeoutNoResponse,
+    LinReadInvalidHeader([u8; 100]),
+    LinReadInvalidChecksum,
 }
 
 /// MCP2003A LIN Transceiver
@@ -91,11 +96,7 @@ where
     /// to ensure the bus devices are ready to receive frames after activation.
     pub fn send_wakeup(&mut self) {
         // Calculate the duration of the wakeup signal
-        let wakeup_duration_ns = match self.config.wakeup_duration {
-            LinWakeupDuration::Minimum250Microseconds => 250_000,
-            LinWakeupDuration::Minimum250MicrosecondsPlus(us) => 250_000 + us,
-            LinWakeupDuration::Maximum5Milliseconds => 5_000_000,
-        };
+        let wakeup_duration_ns = self.config.wakeup_duration.get_duration_ns();
 
         // Ensure the wakeup duration is less than 5 milliseconds
         assert!(wakeup_duration_ns <= 5_000_000, "Wakeup duration must be less than 5 milliseconds");
@@ -144,12 +145,14 @@ where
             }
         }
 
-        // Inter-frame space delay
-        match self.config.inter_frame_space {
-            LinInterFrameSpace::None => (),
-            LinInterFrameSpace::DelayMicroseconds(us) => self.delay.delay_ns(us as u32 * 1_000),
-            LinInterFrameSpace::DelayMilliseconds(ms) => self.delay.delay_ns(ms as u32 * 1_000_000),
+        // Ensures that none of the previously written words are still buffered
+        match block!(self.uart.flush()) {
+            Ok(_) => (),
+            Err(_) => return Err(Mcp2003aError::UartWriteNotReady),
         }
+
+        // Inter-frame space delay
+        self.delay.delay_ns(self.config.inter_frame_space.get_duration_ns());
 
         Ok(frame)
     }
@@ -159,6 +162,9 @@ where
     ///
     /// Note: Inter-frame space is applied after reading the frame.
     pub fn read_frame(&mut self, id: u8, buffer: &mut [u8]) -> Result<usize, Mcp2003aError<E>> {
+        // Inter-frame space delay
+        self.delay.delay_ns(self.config.inter_frame_space.get_duration_ns());
+
         // Send the break signal to notify the device of the start of a frame
         self.send_break();
 
@@ -171,34 +177,44 @@ where
             }
         }
 
-        // Delay to ensure the header has time to be received and responded to
-        match self.config.read_device_response_timeout {
-            LinReadDeviceResponseTimeout::None => (),
-            LinReadDeviceResponseTimeout::DelayMicroseconds(us) => self.delay.delay_ns(us as u32 * 1_000),
-            LinReadDeviceResponseTimeout::DelayMilliseconds(ms) => self.delay.delay_ns(ms as u32 * 1_000_000),
-        }
+        // Delay to ensure the header has time to be received and responded to by the device
+        self.delay.delay_ns(self.config.read_device_response_timeout.get_duration_ns());
 
         // Read the response from the device
+        // NOTE: The mcp2003a will replay the header back to you when you read.
         let mut len = 0;
+
         while len < buffer.len() {
             match self.uart.read() {
                 Ok(byte) => {
+                    // While there are some bytes in the uart buffer,
+                    // keep skipping until we find the header [0x55, id]
+
+                    if len == 0 && byte != 0x55 {
+                        continue;
+                    }
+                    if len == 1 && byte != id {
+                        // Start over recording if response doesn't start with [0x55, id]
+                        len = 0;
+                    }
+
                     buffer[len] = byte;
                     len += 1;
                 }
-                Err(_) => break,
+                Err(embedded_hal_nb::nb::Error::WouldBlock) => {
+                    // If we get a WouldBlock error, we've read all the bytes in the buffer
+                    break;
+                }
+                Err(e) => return Err(Mcp2003aError::UartError(e)),
             }
         }
 
-        // Delay to ensure the frame is read
-        match self.config.inter_frame_space {
-            LinInterFrameSpace::None => (),
-            LinInterFrameSpace::DelayMicroseconds(us) => self.delay.delay_ns(us as u32 * 1_000),
-            LinInterFrameSpace::DelayMilliseconds(ms) => self.delay.delay_ns(ms as u32 * 1_000_000),
-        }
+        // Inter-frame space delay
+        self.delay.delay_ns(self.config.inter_frame_space.get_duration_ns());
 
-        if len == 0 {
-            return Err(Mcp2003aError::LinDeviceNoResponse);
+        // Assume empty response is a timeout
+        if len <= 2 {
+            return Err(Mcp2003aError::LinDeviceTimeoutNoResponse);
         }
 
         Ok(len)
