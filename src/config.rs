@@ -1,7 +1,7 @@
 /// LIN Break Duration for the MCP2003A transceiver.
 /// The specification requires a minimum of 13 bits for the break signal, but the actual underlying
 /// implementation of the LIN devices may require more bits for stability (maybe 13 bits + 1 or 2 bits).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LinBreakDuration {
     Minimum13Bits,
     Minimum13BitsPlus(u8),
@@ -19,7 +19,7 @@ impl LinBreakDuration {
 
 /// LIN Wakeup Signal Duration for the MCP2003A transceiver.
 /// The specification requires a minimum of 250 microseconds for the wakeup signal.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LinWakeupDuration {
     Minimum250Microseconds,
     Minimum250MicrosecondsPlus(u32),
@@ -28,7 +28,7 @@ pub enum LinWakeupDuration {
 
 /// How long to wait after sending a read header before reading the response, allowing the slave device to respond.
 /// Typically this is a 1-10 ms delay but can vary by system.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LinReadDeviceResponseTimeout {
     None,
     DelayMicroseconds(u32),
@@ -37,7 +37,7 @@ pub enum LinReadDeviceResponseTimeout {
 
 /// How long to wait after sending a frame before sending the next frame.
 /// This applies to both sending and receiving frames. Typically, this is 1-2 ms.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LinInterFrameSpace {
     None,
     DelayMicroseconds(u32),
@@ -45,7 +45,7 @@ pub enum LinInterFrameSpace {
 }
 
 /// LIN Bus Speeds available for the MCP2003A transceiver in bits per second.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum LinBusSpeed {
     Baud9600,
     Baud10400,
@@ -71,7 +71,7 @@ impl LinBusSpeed {
 }
 
 /// Configuration for the LIN bus.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LinBusConfig {
     /// LIN Bus Speed / Baud Rate in bits per second.
     pub speed: LinBusSpeed,
@@ -125,5 +125,15 @@ mod tests {
         let speed = LinBusSpeed::Baud19200;
         assert_eq!(speed.get_baud_rate(), 19200);
         assert_eq!(speed.get_bit_period_ns(), 52_083);
+    }
+
+    #[test]
+    fn test_default_config() {
+        let config = LinBusConfig::default();
+        assert_eq!(config.speed, LinBusSpeed::Baud19200);
+        assert_eq!(config.break_duration, LinBreakDuration::Minimum13Bits);
+        assert_eq!(config.wakeup_duration, LinWakeupDuration::Minimum250Microseconds);
+        assert_eq!(config.read_device_response_timeout, LinReadDeviceResponseTimeout::DelayMilliseconds(2));
+        assert_eq!(config.inter_frame_space, LinInterFrameSpace::DelayMilliseconds(1));
     }
 }
