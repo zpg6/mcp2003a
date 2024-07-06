@@ -1,0 +1,34 @@
+name: Rust Build
+
+on:
+  push:
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - ".github/workflows/build.yml" # This file
+    branches:
+      - main
+
+  pull_request:
+    paths:
+      - "src/**"
+      - "Cargo.toml"
+      - ".github/workflows/build.yml" # This file
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build project
+        run: cargo build --release
