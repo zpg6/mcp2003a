@@ -98,10 +98,7 @@ where
         };
 
         // Ensure the wakeup duration is less than 5 milliseconds
-        assert!(
-            wakeup_duration_ns <= 5_000_000,
-            "Wakeup duration must be less than 5 milliseconds"
-        );
+        assert!(wakeup_duration_ns <= 5_000_000, "Wakeup duration must be less than 5 milliseconds");
 
         // Start the wakeup signal
         self.break_pin.set_high().unwrap();
@@ -120,17 +117,9 @@ where
     /// The data length must be between 0 and 8 bytes.
     ///
     /// Note: Inter-frame space is applied after sending the frame.
-    pub fn send_frame(
-        &mut self,
-        id: u8,
-        data: &[u8],
-        checksum: u8,
-    ) -> Result<[u8; 11], Mcp2003aError<E>> {
+    pub fn send_frame(&mut self, id: u8, data: &[u8], checksum: u8) -> Result<[u8; 11], Mcp2003aError<E>> {
         // Calculate the length of the data
-        assert!(
-            data.len() <= 8 && data.len() > 0,
-            "Data length must be between 1 and 8 bytes"
-        );
+        assert!(data.len() <= 8 && data.len() > 0, "Data length must be between 1 and 8 bytes");
         let data_len = data.len();
 
         // Calculate the frame
@@ -185,12 +174,8 @@ where
         // Delay to ensure the header has time to be received and responded to
         match self.config.read_device_response_timeout {
             LinReadDeviceResponseTimeout::None => (),
-            LinReadDeviceResponseTimeout::DelayMicroseconds(us) => {
-                self.delay.delay_ns(us as u32 * 1_000)
-            }
-            LinReadDeviceResponseTimeout::DelayMilliseconds(ms) => {
-                self.delay.delay_ns(ms as u32 * 1_000_000)
-            }
+            LinReadDeviceResponseTimeout::DelayMicroseconds(us) => self.delay.delay_ns(us as u32 * 1_000),
+            LinReadDeviceResponseTimeout::DelayMilliseconds(ms) => self.delay.delay_ns(ms as u32 * 1_000_000),
         }
 
         // Read the response from the device
