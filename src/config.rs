@@ -83,7 +83,7 @@ pub enum LinBusSpeed {
     Baud9600,
     Baud10400,
     Baud19200,
-    Baud20000,
+    BaudBps(u32),
 }
 
 impl LinBusSpeed {
@@ -93,7 +93,7 @@ impl LinBusSpeed {
             LinBusSpeed::Baud9600 => 9600,
             LinBusSpeed::Baud10400 => 10400,
             LinBusSpeed::Baud19200 => 19200,
-            LinBusSpeed::Baud20000 => 20000,
+            LinBusSpeed::BaudBps(baud) => *baud,
         }
     }
 
@@ -107,6 +107,7 @@ impl LinBusSpeed {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LinBusConfig {
     /// LIN Bus Speed / Baud Rate in bits per second.
+    /// Required to calculate the bit period for the break signal duration.
     pub speed: LinBusSpeed,
     /// Duration of the break signal at the beginning of a frame.
     pub break_duration: LinBreakDuration,
@@ -171,6 +172,21 @@ mod tests {
             LinReadDeviceResponseTimeout::DelayMilliseconds(2)
         );
         assert_eq!(config.inter_frame_space, LinInterFrameSpace::DelayMilliseconds(1));
+    }
+
+    #[test]
+    fn test_bus_speed() {
+        let speed = LinBusSpeed::Baud19200;
+        assert_eq!(speed.get_baud_rate(), 19200);
+        assert_eq!(speed.get_bit_period_ns(), 52_083);
+
+        let speed = LinBusSpeed::BaudBps(10_000);
+        assert_eq!(speed.get_baud_rate(), 10_000);
+        assert_eq!(speed.get_bit_period_ns(), 100_000);
+
+        let speed = LinBusSpeed::BaudBps(1_000);
+        assert_eq!(speed.get_baud_rate(), 1_000);
+        assert_eq!(speed.get_bit_period_ns(), 1_000_000);
     }
 
     #[test]
