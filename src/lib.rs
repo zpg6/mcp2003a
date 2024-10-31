@@ -77,6 +77,8 @@ use config::*;
 pub enum Mcp2003aError<E> {
     UartError(embedded_hal_nb::nb::Error<E>),
     UartWriteNotReady,
+    SyncByteNotReceivedBack,
+    IdByteNotReceivedBack,
     LinDeviceTimeoutNoResponse,
     LinReadInvalidChecksum,
 }
@@ -265,8 +267,11 @@ where
         // Inter-frame space delay
         self.delay.delay_ns(self.config.inter_frame_space.get_duration_ns());
 
-        // Assume empty response is a timeout
-        if len <= 2 {
+        if len == 0 {
+            return Err(Mcp2003aError::SyncByteNotReceivedBack);
+        } else if len == 1 {
+            return Err(Mcp2003aError::IdByteNotReceivedBack);
+        } else if len == 2 {
             return Err(Mcp2003aError::LinDeviceTimeoutNoResponse);
         }
 
