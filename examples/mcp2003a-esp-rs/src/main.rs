@@ -9,7 +9,10 @@ use esp_idf_svc::hal::{
     units::Hertz,
 };
 use mcp2003a::{
-    config::{LinBreakDuration, LinBusConfig, LinBusSpeed, LinInterFrameSpace, LinReadDeviceResponseTimeout, LinWakeupDuration},
+    config::{
+        LinBreakDuration, LinBusConfig, LinBusSpeed, LinInterFrameSpace, LinReadDeviceResponseTimeout,
+        LinWakeupDuration,
+    },
     Mcp2003a, Mcp2003aError,
 };
 
@@ -30,11 +33,19 @@ fn main() {
     let uart2_rx = peripherals.pins.gpio16;
     let uart2_tx = peripherals.pins.gpio17;
     let uart2_config = UartConfig::default()
-        .baudrate(Hertz(19200))
+        .baudrate(Hertz(19200)) // Configure the baudrate for the LIN Bus here as well
         .data_bits(DataBits::DataBits8)
         .parity_none()
         .stop_bits(StopBits::STOP1);
-    let uart2_driver = UartDriver::new(uart2, uart2_tx, uart2_rx, Option::<Gpio0>::None, Option::<Gpio1>::None, &uart2_config).unwrap();
+    let uart2_driver = UartDriver::new(
+        uart2,
+        uart2_tx,
+        uart2_rx,
+        Option::<Gpio0>::None,
+        Option::<Gpio1>::None,
+        &uart2_config,
+    )
+    .unwrap();
 
     // Configure the GPIO pin for the LIN Bus break signal
     let break_pin = peripherals.pins.gpio15;
@@ -46,15 +57,15 @@ fn main() {
     // Configure the LIN Bus with the following parameters:
     let lin_bus_config = LinBusConfig {
         speed: LinBusSpeed::Baud19200,
-        break_duration: LinBreakDuration::Minimum13Bits,            // Test for your application
+        break_duration: LinBreakDuration::Minimum13Bits, // Test for your application
         wakeup_duration: LinWakeupDuration::Minimum250Microseconds, // Test for your application
         read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(2), // Test for your application
         inter_frame_space: LinInterFrameSpace::DelayMilliseconds(1), // Test for your application
     };
 
     // Initialize the MCP2003A LIN Transceiver
-    let mut mcp2003a = Mcp2003a::new(uart2_driver, break_pin_driver, delay, lin_bus_config);
-
+    let mut mcp2003a = Mcp2003a::new(uart2_driver, break_pin_driver, delay);
+    mcp2003a.init(lin_bus_config);
     log::info!("MCP2003A LIN Transceiver initialized");
 
     // Wakeup the LIN Bus
@@ -81,7 +92,7 @@ fn main() {
 
         // Read the feedback / diagnostic frame 0x01 from the LIN bus:
         // - LIN Id: 0x01 --> PID: 0xC1
-        // - Data: We provide an 11-byte buffer which includes 
+        // - Data: We provide an 11-byte buffer which includes
         //         [sync, id, ...up to 8 bytes of data..., checksum]
         let mut data = [0u8; 11];
         match mcp2003a.read_frame(0xC1, &mut data) {

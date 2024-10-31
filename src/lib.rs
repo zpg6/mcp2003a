@@ -30,17 +30,33 @@
 //! - [MCP2003A Datasheet](https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/20002230G.pdf)
 //!
 //! # Usage
+//!
+//! Setup the MCP2003A instance with the UART driver, GPIO pin driver, and delay implementation (depending on the HAL you are using).
+//!
 //! ```rust,ignore
-//! let mut mcp2003a = Mcp2003a::new(uart2_driver, break_pin_driver, delay, lin_bus_config);
+//! let mut mcp2003a = Mcp2003a::new(uart2_driver, break_pin_driver, delay);
 //! ```
-//! 
-//! Then you can use the `mcp2003a` instance to send and receive LIN frames.
-//! 
+//!
+//! Then initialize the MCP2003A instance with the LIN bus configuration.
+//!
+//! ```rust,ignore
+//! let lin_bus_config = LinBusConfig {
+//!    speed: LinBusSpeed::Baud19200,
+//!    break_duration: LinBreakDuration::Minimum13Bits, // Test for your application
+//!    wakeup_duration: LinWakeupDuration::Minimum250Microseconds, // Test for your application
+//!    read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(2), // Test for your application
+//!    inter_frame_space: LinInterFrameSpace::DelayMilliseconds(1), // Test for your application
+//! };
+//! mcp2003a.init(lin_bus_config);
+//! ```
+//!
+//! Now you can use the `mcp2003a` instance to send and receive LIN frames.
+//!
 //! ```rust,ignore
 //! mcp2003a.send_wakeup();
-//! 
+//!
 //! mc2003a.send_frame(0x01, &[0x02, 0x03], 0x05).unwrap();
-//! 
+//!
 //! let mut read_buffer = [0u8; 11];
 //! let len = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
 //! ```
@@ -87,13 +103,18 @@ where
     /// * `break_pin` - GPIO pin for the break signal.
     /// * `delay` - Delay implementation for break signal timing.
     /// * `config` - Configuration for the LIN bus speed and break duration.
-    pub fn new(uart: UART, break_pin: GPIO, delay: DELAY, config: LinBusConfig) -> Self {
+    pub fn new(uart: UART, break_pin: GPIO, delay: DELAY) -> Self {
         Mcp2003a {
             uart,
             break_pin,
             delay,
-            config,
+            config: LinBusConfig::default(),
         }
+    }
+
+    /// Initialize the MCP2003A transceiver with the given LIN bus configuration.
+    pub fn init(&mut self, config: LinBusConfig) {
+        self.config = config;
     }
 
     /// Send a break signal on the LIN bus, pausing execution for at least 730 microseconds (13 bits).
@@ -124,7 +145,10 @@ where
         let wakeup_duration_ns = self.config.wakeup_duration.get_duration_ns();
 
         // Ensure the wakeup duration is less than 5 milliseconds
-        assert!(wakeup_duration_ns <= 5_000_000, "Wakeup duration must be less than 5 milliseconds");
+        assert!(
+            wakeup_duration_ns <= 5_000_000,
+            "Wakeup duration must be less than 5 milliseconds"
+        );
 
         // Start the wakeup signal
         self.break_pin.set_high().unwrap();
@@ -145,7 +169,10 @@ where
     /// Note: Inter-frame space is applied after sending the frame.
     pub fn send_frame(&mut self, id: u8, data: &[u8], checksum: u8) -> Result<[u8; 11], Mcp2003aError<E>> {
         // Calculate the length of the data
-        assert!(data.len() <= 8 && data.len() > 0, "Data length must be between 1 and 8 bytes");
+        assert!(
+            1 <= data.len() && data.len() <= 8,
+            "Data length must be between 1 and 8 bytes"
+        );
         let data_len = data.len();
 
         // Calculate the frame
@@ -203,7 +230,8 @@ where
         }
 
         // Delay to ensure the header has time to be received and responded to by the device
-        self.delay.delay_ns(self.config.read_device_response_timeout.get_duration_ns());
+        self.delay
+            .delay_ns(self.config.read_device_response_timeout.get_duration_ns());
 
         // Read the response from the device
         // NOTE: The mcp2003a will replay the header back to you when you read.

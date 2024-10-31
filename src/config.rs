@@ -166,7 +166,10 @@ mod tests {
         assert_eq!(config.speed, LinBusSpeed::Baud19200);
         assert_eq!(config.break_duration, LinBreakDuration::Minimum13Bits);
         assert_eq!(config.wakeup_duration, LinWakeupDuration::Minimum250Microseconds);
-        assert_eq!(config.read_device_response_timeout, LinReadDeviceResponseTimeout::DelayMilliseconds(2));
+        assert_eq!(
+            config.read_device_response_timeout,
+            LinReadDeviceResponseTimeout::DelayMilliseconds(2)
+        );
         assert_eq!(config.inter_frame_space, LinInterFrameSpace::DelayMilliseconds(1));
     }
 
