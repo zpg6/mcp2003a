@@ -1,6 +1,6 @@
 # mcp2003a
 
-Embedded Rust Microchip MCP2003A LIN transceiver driver with embedded-hal traits for `no-std` environments.
+Embedded Rust Microchip MCP2003A/B LIN transceiver driver with embedded-hal traits for `no-std` environments.
 
 <a href="https://crates.io/crates/mcp2003a">
     <img src="https://img.shields.io/crates/v/mcp2003a.svg" alt="Crates.io">
@@ -16,6 +16,8 @@ Embedded Rust Microchip MCP2003A LIN transceiver driver with embedded-hal traits
 > [!WARNING]
 > This crate is still in development and may not be suitable for production use.
 
+Full Documentation: [https://docs.rs/mcp2003a/latest/mcp2003a/](https://docs.rs/mcp2003a/latest/mcp2003a/)
+
 ## Part Numbers
 
 Tested on:
@@ -26,8 +28,6 @@ Tested on:
 Should also work with:
 
 - [MCP2003B](https://www.microchip.com/en-us/product/MCP2003B) (functional drop-in replacement for MCP2003A)
-
-Full Documentation: [https://docs.rs/mcp2003a/latest/mcp2003a/](https://docs.rs/mcp2003a/latest/mcp2003a/)
 
 ## References
 

@@ -1,6 +1,6 @@
 [package]
 name = "mcp2003a"
-version = "0.0.16"
+version = "0.0.17"
 description = "MCP2003A LIN transceiver driver with embedded-hal traits for no-std environments."
 edition = "2021"
 license = "MIT"

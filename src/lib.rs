@@ -1,33 +1,48 @@
 //! MCP2003A LIN Transceiver Library
+//! # mcp2003a
 //!
-//! <br>
+//! Embedded Rust Microchip MCP2003A LIN transceiver driver with embedded-hal traits for `no-std` environments.
+//!
 //! <a href="https://crates.io/crates/mcp2003a">
-//! <img src="https://img.shields.io/crates/v/mcp2003a.svg" alt="Crates.io">
+//!     <img src="https://img.shields.io/crates/v/mcp2003a.svg" alt="Crates.io">
 //! </a>
 //! <a href="https://docs.rs/mcp2003a">
-//! <img src="https://docs.rs/mcp2003a/badge.svg" alt="Documentation">
+//!     <img src="https://docs.rs/mcp2003a/badge.svg" alt="Documentation">
 //! </a>
 //! <a href="https://github.com/zpg6/mcp2003a">
-//! <img src="https://img.shields.io/badge/github-zpg6/mcp2003a-black" alt="GitHub Repo">
+//!     <img src="https://img.shields.io/badge/github-zpg6/mcp2003a-black" alt="GitHub Repo">
 //! </a>
 //! <br><br>
 //!
+//! WARNING: This crate is still in development and may not be suitable for production use.
 //!
-//! This library provides an `embedded-hal` abstraction for the MCP2003A LIN transceiver using UART
-//! and a GPIO output pin for the break signal.
+//! Full Documentation: [https://docs.rs/mcp2003a/latest/mcp2003a/](https://docs.rs/mcp2003a/latest/mcp2003a/)
 //!
-//! LIN (Local Interconnect Network) is a serial network protocol used in automotive and industrial applications.
-//! Most automobiles on the road today have several LIN bus networks for various systems like climate control,
-//! power windows, lighting, and more.
+//! ## Part Numbers
 //!
-//! # MCP2003A
+//! Tested on:
 //!
-//! The MCP2003A is a LIN transceiver that provides a physical interface between a LIN master and the LIN bus.
-//! As such, this code is intended to be used on a LIN master device that communicates with LIN slave devices.
+//! - [MCP2003A](https://www.microchip.com/wwwproducts/en/MCP2003A) (No Longer Recommended for New Designs)
+//! - MCP2003E
 //!
-//! See more:
+//! Should also work with:
+//!
+//! - [MCP2003B](https://www.microchip.com/en-us/product/MCP2003B) (functional drop-in replacement for MCP2003A)
+//!
+//! ## References
+//!
 //! - [MCP2003A Product Page](https://www.microchip.com/wwwproducts/en/MCP2003A)
-//! - [MCP2003A Datasheet](https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/20002230G.pdf)
+//! - [MCP2003/4/3A/4A Datasheet](https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/20002230G.pdf)
+//! - [MCP2003A to MCP2003B Migration Guide](https://ww1.microchip.com/downloads/en/DeviceDoc/90003150A.pdf)
+//! - [MCP2003B Datasheet](https://ww1.microchip.com/downloads/en/DeviceDoc/2000546C3.pdf)
+//!
+//! ## Features
+//!
+//! Uses `embedded-hal` digital traits for GPIO and `embedded-hal-nb` Serial traits for UART.
+//!
+//! - `embedded-hal = "1.0.0"` - Major breaking changes versus 0.2.x implementations.
+//! - `embedded-hal-nb = "1.0.0"` - Additional non-blocking traits using `nb` crate underneath.
+//!
 //!
 //! # Usage
 //!
