@@ -1,8 +1,7 @@
 # mcp2003a
 
-Embedded Rust Microchip MCP2003A LIN transceiver driver with embedded-hal traits for no-std environments.
+Embedded Rust Microchip MCP2003A LIN transceiver driver with embedded-hal traits for `no-std` environments.
 
-<br>
 <a href="https://crates.io/crates/mcp2003a">
     <img src="https://img.shields.io/crates/v/mcp2003a.svg" alt="Crates.io">
 </a>
@@ -14,20 +13,35 @@ Embedded Rust Microchip MCP2003A LIN transceiver driver with embedded-hal traits
 </a>
 <br><br>
 
-Uses `embedded-hal` digital traits for GPIO and `embedded-hal-nb` Serial traits for UART.
-
-- `embedded-hal = "1.0.0"` - Major breaking changes versus 0.2.x implementations.
-- `embedded-hal-nb = "1.0.0"` - Additional non-blocking traits using `nb` crate underneath.
-
 > [!WARNING]
 > This crate is still in development and may not be suitable for production use.
+
+## Part Numbers
+
+Tested on:
+
+- [MCP2003A](https://www.microchip.com/wwwproducts/en/MCP2003A) (No Longer Recommended for New Designs)
+- MCP2003E
+
+Should also work with:
+
+- [MCP2003B](https://www.microchip.com/en-us/product/MCP2003B) (functional drop-in replacement for MCP2003A)
 
 Full Documentation: [https://docs.rs/mcp2003a/latest/mcp2003a/](https://docs.rs/mcp2003a/latest/mcp2003a/)
 
 ## References
 
 - [MCP2003A Product Page](https://www.microchip.com/wwwproducts/en/MCP2003A)
-- [MCP2003A Datasheet](https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/20002230G.pdf)
+- [MCP2003/4/3A/4A Datasheet](https://ww1.microchip.com/downloads/aemDocuments/documents/OTH/ProductDocuments/DataSheets/20002230G.pdf)
+- [MCP2003A to MCP2003B Migration Guide](https://ww1.microchip.com/downloads/en/DeviceDoc/90003150A.pdf)
+- [MCP2003B Datasheet](https://ww1.microchip.com/downloads/en/DeviceDoc/2000546C3.pdf)
+
+## Features
+
+Uses `embedded-hal` digital traits for GPIO and `embedded-hal-nb` Serial traits for UART.
+
+- `embedded-hal = "1.0.0"` - Major breaking changes versus 0.2.x implementations.
+- `embedded-hal-nb = "1.0.0"` - Additional non-blocking traits using `nb` crate underneath.
 
 ## Usage
 
