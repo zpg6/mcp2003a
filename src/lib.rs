@@ -90,15 +90,33 @@ use config::*;
 
 #[derive(Debug)]
 pub enum Mcp2003aError<E> {
+    /// Some serial error occurred.
     UartError(embedded_hal_nb::nb::Error<E>),
+
+    /// The UART write was not ready to send the next byte.
     UartWriteNotReady,
+
+    /// Sync byte was not read back, likely indicating the bus is not active.
     SyncByteNotReceivedBack,
+
+    /// Sync byte was read back, but the ID byte was not received.
     IdByteNotReceivedBack,
+
+    /// Sync and ID bytes were read back (indicating the bus is active), but no data was received.
     LinDeviceTimeoutNoResponse,
-    LinDeviceTimeoutPartialResponse,
+
+    /// Partial response with the number of bytes received.
+    LinDeviceTimeoutPartialResponse(usize),
+
+    /// Data bytes were received, but the checksum was not received after the data.
     LinReadNoChecksumReceived,
-    LinReadInvalidChecksum,
+
+    /// After the data bytes and checksum were received, there were still more delivered.
     LinReadExceedsBuffer,
+
+    /// Not used by the library, but implementers can use this to indicate the checksum was invalid.
+    /// (Useful to maintain the same error type for that last step)
+    LinReadInvalidChecksum,
 }
 
 /// MCP2003A LIN Transceiver
@@ -326,7 +344,7 @@ where
             return Err(Mcp2003aError::LinDeviceTimeoutNoResponse);
         }
         if data_bytes_received < buffer.len() {
-            return Err(Mcp2003aError::LinDeviceTimeoutPartialResponse);
+            return Err(Mcp2003aError::LinDeviceTimeoutPartialResponse(data_bytes_received));
         }
         if !checksum_received {
             return Err(Mcp2003aError::LinReadNoChecksumReceived);
