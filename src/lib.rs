@@ -95,7 +95,10 @@ pub enum Mcp2003aError<E> {
     SyncByteNotReceivedBack,
     IdByteNotReceivedBack,
     LinDeviceTimeoutNoResponse,
+    LinDeviceTimeoutPartialResponse,
+    LinReadNoChecksumReceived,
     LinReadInvalidChecksum,
+    LinReadExceedsBuffer,
 }
 
 /// MCP2003A LIN Transceiver
@@ -229,14 +232,13 @@ where
     }
 
     /// Read a frame from the LIN bus with the given ID into the buffer.
-    /// Returns the number of bytes read into the buffer and the checksum byte if
-    /// the buffer is filled and the checksum is received after the data.
+    /// Fills the buffer and returns the checksum is received after the data.
     ///
     /// - Note: The id must be ready to send (i.e., send in the PID if needed for your LIN version).
     /// - Note: Inter-frame space is applied after reading the frame.
     /// - Note: Assumes your buffer is the size of the data you expect to receive.
     /// - Note: You must decide how to validate the checksum based on your application and LIN version.
-    pub fn read_frame(&mut self, id: u8, buffer: &mut [u8]) -> Result<(usize, Option<u8>), Mcp2003aError<E>> {
+    pub fn read_frame(&mut self, id: u8, buffer: &mut [u8]) -> Result<u8, Mcp2003aError<E>> {
         // Inter-frame space delay
         self.delay.delay_ns(self.config.inter_frame_space.get_duration_ns());
 
@@ -259,6 +261,11 @@ where
         // Read the response from the device
         // NOTE: The mcp2003a will replay the header back to you when you read.
         let mut len = 0;
+        let mut sync_byte_received = false;
+        let mut id_byte_received = false;
+        let mut data_bytes_received = 0;
+        let mut checksum_received = false;
+        let mut checksum = 0;
 
         while len < buffer.len() {
             match self.uart.read() {
@@ -266,21 +273,37 @@ where
                     // While there are some bytes in the uart buffer,
                     // keep skipping until we find the header [0x55, id]
 
-                    if len == 0 && byte != 0x55 {
+                    // Check for the sync byte
+                    if !sync_byte_received {
+                        if byte == 0x55 {
+                            sync_byte_received = true;
+                        }
                         continue;
                     }
-                    if len == 1 && byte != id {
-                        // Start over recording if response doesn't start with [0x55, id]
-                        len = 0;
+
+                    // Check for the id byte
+                    if !id_byte_received {
+                        if byte == id {
+                            id_byte_received = true;
+                        } else {
+                            sync_byte_received = false;
+                        }
+                        continue;
                     }
 
-                    // Checksum is the last byte after buffer is filled
-                    if len == buffer.len() {
-                        return Ok((len, Some(byte)));
+                    // Add data bytes to the buffer
+                    if data_bytes_received < buffer.len() {
+                        buffer[len] = byte;
+                        len += 1;
+                        data_bytes_received += 1;
+                    } else {
+                        if !checksum_received {
+                            checksum = byte;
+                            checksum_received = true;
+                        } else {
+                            return Err(Mcp2003aError::LinReadExceedsBuffer);
+                        }
                     }
-
-                    buffer[len] = byte;
-                    len += 1;
                 }
                 Err(embedded_hal_nb::nb::Error::WouldBlock) => {
                     // If we get a WouldBlock error, we've read all the bytes in the buffer
@@ -293,14 +316,22 @@ where
         // Inter-frame space delay
         self.delay.delay_ns(self.config.inter_frame_space.get_duration_ns());
 
-        if len == 0 {
+        if !sync_byte_received {
             return Err(Mcp2003aError::SyncByteNotReceivedBack);
-        } else if len == 1 {
+        }
+        if !id_byte_received {
             return Err(Mcp2003aError::IdByteNotReceivedBack);
-        } else if len == 2 {
+        }
+        if data_bytes_received == 0 {
             return Err(Mcp2003aError::LinDeviceTimeoutNoResponse);
         }
+        if data_bytes_received < buffer.len() {
+            return Err(Mcp2003aError::LinDeviceTimeoutPartialResponse);
+        }
+        if !checksum_received {
+            return Err(Mcp2003aError::LinReadNoChecksumReceived);
+        }
 
-        Ok((len, None))
+        Ok(checksum)
     }
 }
