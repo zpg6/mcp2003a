@@ -73,7 +73,7 @@
 //! mc2003a.send_frame(0x01, &[0x02, 0x03], 0x05).unwrap();
 //!
 //! let mut read_buffer = [0u8; 11];
-//! let (len, checksum) = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
+//! let checksum = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
 //! ```
 
 #![no_std]
@@ -267,7 +267,7 @@ where
         let mut checksum_received = false;
         let mut checksum = 0;
 
-        while len < buffer.len() {
+        loop {
             match self.uart.read() {
                 Ok(byte) => {
                     // While there are some bytes in the uart buffer,

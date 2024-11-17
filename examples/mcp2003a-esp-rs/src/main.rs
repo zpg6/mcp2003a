@@ -95,9 +95,9 @@ fn main() {
         // - Data: Buffer of 8 bytes will explicitly try to read 8 bytes then a checksum
         let mut data = [0u8; 8];
         match mcp2003a.read_frame(0xC1, &mut data) {
-            Ok((len, _checksum)) => {
+            Ok(checksum) => {
                 // Data is stored in the buffer
-                log::info!("Received data from LIN Id 0x01: {:?}", &data[..len]);
+                log::info!("Received data from LIN Id 0x01: {:?} with checksum: 0x{:02X}", data, checksum);
             }
             Err(e) => {
                 // Error reading the frame
