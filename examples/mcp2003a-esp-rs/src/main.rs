@@ -59,7 +59,7 @@ fn main() {
         speed: LinBusSpeed::Baud19200,
         break_duration: LinBreakDuration::Minimum13Bits, // Test for your application
         wakeup_duration: LinWakeupDuration::Minimum250Microseconds, // Test for your application
-        read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(2), // Test for your application
+        read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(15), // Test for your application
         inter_frame_space: LinInterFrameSpace::DelayMilliseconds(1), // Test for your application
     };
 
@@ -97,12 +97,16 @@ fn main() {
         match mcp2003a.read_frame(0xC1, &mut data) {
             Ok(checksum) => {
                 // Data is stored in the buffer
-                log::info!("Received data from LIN Id 0x01: {:?} with checksum: 0x{:02X}", data, checksum);
+                log::info!(
+                    "Received data from LIN Id 0x01: {:?} with checksum: 0x{:02X}",
+                    data,
+                    checksum
+                );
             }
             Err(e) => {
                 // Error reading the frame
                 match e {
-                    Mcp2003aError::LinDeviceTimeoutNoResponse => {
+                    Mcp2003aError::LinReadDeviceTimeoutNoResponse => {
                         log::warn!("No response from LIN Id 0x01... this device may be offline.");
                     }
                     _ => {

@@ -59,7 +59,7 @@
 //!    speed: LinBusSpeed::Baud19200,
 //!    break_duration: LinBreakDuration::Minimum13Bits, // Test for your application
 //!    wakeup_duration: LinWakeupDuration::Minimum250Microseconds, // Test for your application
-//!    read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(2), // Test for your application
+//!    read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(15), // Test for your application
 //!    inter_frame_space: LinInterFrameSpace::DelayMilliseconds(1), // Test for your application
 //! };
 //! mcp2003a.init(lin_bus_config);
@@ -72,7 +72,7 @@
 //!
 //! mc2003a.send_frame(0x01, &[0x02, 0x03], 0x05).unwrap();
 //!
-//! let mut read_buffer = [0u8; 11];
+//! let mut read_buffer = [0u8; 8]; // Initialize the buffer to the frame's known size
 //! let checksum = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
 //! ```
 
@@ -103,20 +103,19 @@ pub enum Mcp2003aError<E> {
     IdByteNotReceivedBack,
 
     /// Sync and ID bytes were read back (indicating the bus is active), but no data was received.
-    LinDeviceTimeoutNoResponse,
+    LinReadDeviceTimeoutNoResponse,
 
     /// Partial response with the number of bytes received.
-    LinDeviceTimeoutPartialResponse(usize),
+    /// Consider increasing the `read_device_response_timeout`, or you may not have
+    /// specified the correct number of bytes to read when defining the buffer.
+    LinReadOnlyPartialResponse(usize),
 
     /// Data bytes were received, but the checksum was not received after the data.
+    /// You may not have specified the correct number of bytes to read when defining the buffer.
     LinReadNoChecksumReceived,
 
-    /// After the data bytes and checksum were received, there were still more delivered.
-    LinReadExceedsBuffer,
-
-    /// Not used by the library, but implementers can use this to indicate the checksum was invalid.
-    /// (Useful to maintain the same error type for that last step)
-    LinReadInvalidChecksum,
+    /// Not used by this library, but implementers can use this to indicate the checksum was invalid.
+    LinReadInvalidChecksum(u8),
 }
 
 /// MCP2003A LIN Transceiver
@@ -296,31 +295,27 @@ where
                         if byte == 0x55 {
                             sync_byte_received = true;
                         }
-                        continue;
                     }
-
                     // Check for the id byte
-                    if !id_byte_received {
+                    else if !id_byte_received {
                         if byte == id {
                             id_byte_received = true;
                         } else {
                             sync_byte_received = false;
                         }
-                        continue;
                     }
-
-                    // Add data bytes to the buffer
-                    if data_bytes_received < buffer.len() {
+                    // Read the data bytes up until the provided buffer length
+                    else if data_bytes_received < buffer.len() {
                         buffer[len] = byte;
                         len += 1;
                         data_bytes_received += 1;
-                    } else {
-                        if !checksum_received {
-                            checksum = byte;
-                            checksum_received = true;
-                        } else {
-                            return Err(Mcp2003aError::LinReadExceedsBuffer);
-                        }
+                    }
+                    // After the data bytes, read the checksum
+                    else if !checksum_received {
+                        checksum = byte;
+                        checksum_received = true;
+                        // We've read the whole frame
+                        break;
                     }
                 }
                 Err(embedded_hal_nb::nb::Error::WouldBlock) => {
@@ -341,10 +336,10 @@ where
             return Err(Mcp2003aError::IdByteNotReceivedBack);
         }
         if data_bytes_received == 0 {
-            return Err(Mcp2003aError::LinDeviceTimeoutNoResponse);
+            return Err(Mcp2003aError::LinReadDeviceTimeoutNoResponse);
         }
         if data_bytes_received < buffer.len() {
-            return Err(Mcp2003aError::LinDeviceTimeoutPartialResponse(data_bytes_received));
+            return Err(Mcp2003aError::LinReadOnlyPartialResponse(data_bytes_received));
         }
         if !checksum_received {
             return Err(Mcp2003aError::LinReadNoChecksumReceived);

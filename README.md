@@ -60,7 +60,7 @@ let lin_bus_config = LinBusConfig {
    speed: LinBusSpeed::Baud19200,
    break_duration: LinBreakDuration::Minimum13Bits, // Test for your application
    wakeup_duration: LinWakeupDuration::Minimum250Microseconds, // Test for your application
-   read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(2), // Test for your application
+   read_device_response_timeout: LinReadDeviceResponseTimeout::DelayMilliseconds(15), // Test for your application
    inter_frame_space: LinInterFrameSpace::DelayMilliseconds(1), // Test for your application
 };
 mcp2003a.init(lin_bus_config);
@@ -69,8 +69,8 @@ mcp2003a.send_wakeup();
 
 mc2003a.send_frame(0x01, &[0x02, 0x03], 0x05).unwrap();
 
-let mut read_buffer = [0u8; 11];
-let len = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
+let mut read_buffer = [0u8; 8]; // Initialize the buffer to the frame's known size
+let checksum = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
 ```
 
 ### Full Examples
