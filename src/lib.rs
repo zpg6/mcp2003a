@@ -73,7 +73,7 @@
 //! mc2003a.send_frame(0x01, &[0x02, 0x03], 0x05).unwrap();
 //!
 //! let mut read_buffer = [0u8; 11];
-//! let len = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
+//! let (len, checksum) = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
 //! ```
 
 #![no_std]
@@ -155,7 +155,7 @@ where
 
     /// Send a wakeup signal on the LIN bus, pausing execution for at least 250 microseconds.
     ///
-    /// Note: there is an additional delay of the configured wakeup duration after the wakeup signal
+    /// - Note: there is an additional delay of the configured wakeup duration after the wakeup signal
     /// to ensure the bus devices are ready to receive frames after activation.
     pub fn send_wakeup(&mut self) {
         // Calculate the duration of the wakeup signal
@@ -183,7 +183,9 @@ where
     /// Send a frame on the LIN bus with the given ID, data, and checksum.
     /// The data length must be between 0 and 8 bytes.
     ///
-    /// Note: Inter-frame space is applied after sending the frame.
+    /// - Note: The id must be ready to send (i.e., send in the PID if needed for your LIN version).
+    /// - Note: You must calculate the checksum based on your application and LIN version.
+    /// - Note: Inter-frame space is applied after sending the frame.
     pub fn send_frame(&mut self, id: u8, data: &[u8], checksum: u8) -> Result<[u8; 11], Mcp2003aError<E>> {
         // Calculate the length of the data
         assert!(
@@ -227,10 +229,14 @@ where
     }
 
     /// Read a frame from the LIN bus with the given ID into the buffer.
-    /// Returns the number of bytes read into the buffer.
+    /// Returns the number of bytes read into the buffer and the checksum byte if
+    /// the buffer is filled and the checksum is received after the data.
     ///
-    /// Note: Inter-frame space is applied after reading the frame.
-    pub fn read_frame(&mut self, id: u8, buffer: &mut [u8]) -> Result<usize, Mcp2003aError<E>> {
+    /// - Note: The id must be ready to send (i.e., send in the PID if needed for your LIN version).
+    /// - Note: Inter-frame space is applied after reading the frame.
+    /// - Note: Assumes your buffer is the size of the data you expect to receive.
+    /// - Note: You must decide how to validate the checksum based on your application and LIN version.
+    pub fn read_frame(&mut self, id: u8, buffer: &mut [u8]) -> Result<(usize, Option<u8>), Mcp2003aError<E>> {
         // Inter-frame space delay
         self.delay.delay_ns(self.config.inter_frame_space.get_duration_ns());
 
@@ -268,6 +274,11 @@ where
                         len = 0;
                     }
 
+                    // Checksum is the last byte after buffer is filled
+                    if len == buffer.len() {
+                        return Ok((len, Some(byte)));
+                    }
+
                     buffer[len] = byte;
                     len += 1;
                 }
@@ -290,6 +301,6 @@ where
             return Err(Mcp2003aError::LinDeviceTimeoutNoResponse);
         }
 
-        Ok(len)
+        Ok((len, None))
     }
 }

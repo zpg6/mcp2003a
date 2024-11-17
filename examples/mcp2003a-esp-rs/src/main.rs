@@ -92,11 +92,10 @@ fn main() {
 
         // Read the feedback / diagnostic frame 0x01 from the LIN bus:
         // - LIN Id: 0x01 --> PID: 0xC1
-        // - Data: We provide an 11-byte buffer which includes
-        //         [sync, id, ...up to 8 bytes of data..., checksum]
-        let mut data = [0u8; 11];
+        // - Data: Buffer of 8 bytes will explicitly try to read 8 bytes then a checksum
+        let mut data = [0u8; 8];
         match mcp2003a.read_frame(0xC1, &mut data) {
-            Ok(len) => {
+            Ok((len, _checksum)) => {
                 // Data is stored in the buffer
                 log::info!("Received data from LIN Id 0x01: {:?}", &data[..len]);
             }
