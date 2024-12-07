@@ -38,10 +38,15 @@ Should also work with:
 
 ## Features
 
-Uses `embedded-hal` digital traits for GPIO and `embedded-hal-nb` Serial traits for UART.
+Sync:
 
-- `embedded-hal = "1.0.0"` - Major breaking changes versus 0.2.x implementations.
+- `embedded-hal = "1.0.0"` - Embedded HAL traits for GPIO, UART, and Delay drivers.
 - `embedded-hal-nb = "1.0.0"` - Additional non-blocking traits using `nb` crate underneath.
+
+Async:
+
+- `embedded-hal-async = "1.0.0"` - Async traits for async GPIO, and Delay drivers.
+- `embedded-io-async = "0.6.1"` - Async traits for async UART drivers.
 
 ## Usage
 
@@ -51,7 +56,7 @@ Add the crate to your `Cargo.toml`:
 cargo add mcp2003a
 ```
 
-### Example
+### Examples
 
 ```rust
 let mut mcp2003a = Mcp2003a::new(uart2_driver, break_pin_driver, delay);
@@ -74,8 +79,14 @@ let mut read_buffer = [0u8; 8]; // Initialize the buffer to the frame's known si
 let checksum = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
 ```
 
+If you have async UART, GPIO, and Delay drivers that implement the `embedded-hal-async` traits, you can use the async methods. For example:
+
+```rust
+mcp2003a.send_frame_async(0x01, &[0x02, 0x03], 0x05).await.unwrap();
+```
+
 ### Full Examples
 
 (More coming soon)
 
-- [ESP-32 via ESP-RS](https://github.com/zpg6/mcp2003a/tree/main/examples/mcp2003a-esp-rs) - Example using the MCP2003A with an ESP-32 microcontroller using the ESP-RS HAL.
+- [ESP-32 via ESP-RS](https://github.com/zpg6/mcp2003a/tree/main/examples/mcp2003a-esp-rs) - Example using the MCP2003A with an ESP-32 microcontroller using `esp-idf-hal` (std).
