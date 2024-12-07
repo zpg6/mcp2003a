@@ -67,7 +67,8 @@ mcp2003a.init(lin_bus_config);
 
 mcp2003a.send_wakeup();
 
-mc2003a.send_frame(0x01, &[0x02, 0x03], 0x05).unwrap();
+// Works for different LIN versions, you calculate id and checksum based on your application
+mcp2003a.send_frame(0x01, &[0x02, 0x03], 0x05).unwrap();
 
 let mut read_buffer = [0u8; 8]; // Initialize the buffer to the frame's known size
 let checksum = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
