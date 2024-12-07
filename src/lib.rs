@@ -1,7 +1,6 @@
-//! MCP2003A LIN Transceiver Library
 //! # mcp2003a
 //!
-//! Embedded Rust Microchip MCP2003A LIN transceiver driver with embedded-hal traits for `no-std` environments.
+//! Embedded Rust Microchip MCP2003A/B LIN transceiver driver with `embedded-hal` blocking and async traits for `no-std` environments.
 //!
 //! <a href="https://crates.io/crates/mcp2003a">
 //!     <img src="https://img.shields.io/crates/v/mcp2003a.svg" alt="Crates.io">
@@ -14,11 +13,30 @@
 //! </a>
 //! <br><br>
 //!
-//! WARNING: This crate is still in development and may not be suitable for production use.
+//! This driver attempts to be a simple reflection of the well-documented instructions from the LIN specification:
+//! [https://www.lin-cia.org/fileadmin/microsites/lin-cia.org/resources/documents/LIN_2.2A.pdf](https://www.lin-cia.org/fileadmin/microsites/lin-cia.org/resources/documents/LIN_2.2A.pdf)
+//!
+//! > ⚠️ WARNING:
+//! > This crate may not be suitable for production use. It was written as hands-on learning exercise of a well-documented specification.
+//! > It may not cover all edge cases or vendor-specific implementations. Please use with caution.
 //!
 //! Full Documentation: [https://docs.rs/mcp2003a/latest/mcp2003a/](https://docs.rs/mcp2003a/latest/mcp2003a/)
 //!
-//! ## Part Numbers
+//! ## Alternatives
+//! - [https://github.com/Skuzee/LIN_BUS_lib-Skuzee](https://github.com/Skuzee/LIN_BUS_lib-Skuzee) (Arduino)
+//! - [https://github.com/NaokiS28/LINduino](https://github.com/NaokiS28/LINduino) - (Arduino)
+//! - [https://github.com/Sensirion/lin-bus-rs](https://github.com/Sensirion/lin-bus-rs) - (Rust)
+//! - [https://github.com/fernpedro/Two-node-LIN-cluster-with-Arduino](https://github.com/fernpedro/Two-node-LIN-cluster-with-Arduino) - (Arduino)
+//!   - Includes wiring diagram, walkthrough, and photo of a LIN frame on an oscilloscope
+//! - [https://forum.arduino.cc/t/sending-data-using-lin-cominication/1178509](https://forum.arduino.cc/t/sending-data-using-lin-cominication/1178509) - (Arduino) (forum post with example code)
+//! - [https://github.com/gandrewstone/LIN](https://github.com/gandrewstone/LIN) - (C++)
+//! - [https://github.com/fernpedro/LIN-frame-Header-implementation](https://github.com/fernpedro/LIN-frame-Header-implementation) - (C++)
+//!
+//! ## Similar Projects
+//! - [https://github.com/matt2005/LIN-1](https://github.com/matt2005/LIN-1) - (C++) Supports LIN on MCP2025
+//! - [https://github.com/macchina/LIN](https://github.com/macchina/LIN) - (C++) (Arduino library to add dual LIN support on SAM3X based boards with a TJA1021/TJA1027 transceiver)
+//!
+//! ## Supported MCP2003 Part Numbers
 //!
 //! Tested on:
 //!
@@ -38,11 +56,15 @@
 //!
 //! ## Features
 //!
-//! Uses `embedded-hal` digital traits for GPIO and `embedded-hal-nb` Serial traits for UART.
+//! Blocking:
 //!
-//! - `embedded-hal = "1.0.0"` - Major breaking changes versus 0.2.x implementations.
+//! - `embedded-hal = "1.0.0"` - Embedded HAL traits for GPIO, UART, and Delay drivers.
 //! - `embedded-hal-nb = "1.0.0"` - Additional non-blocking traits using `nb` crate underneath.
 //!
+//! Async:
+//!
+//! - `embedded-hal-async = "1.0.0"` - Async traits for async GPIO, and Delay drivers.
+//! - `embedded-io-async = "0.6.1"` - Async traits for async UART drivers.
 //!
 //! # Usage
 //!
@@ -75,6 +97,13 @@
 //!
 //! let mut read_buffer = [0u8; 8]; // Initialize the buffer to the frame's known size
 //! let checksum = mcp2003a.read_frame(0xC1, &mut read_buffer).unwrap();
+//! ```
+//!
+//! ## Async Usage
+//! If you have async UART, GPIO, and Delay drivers that implement the `embedded-hal-async` traits, you can use the async methods (recommended). For example:
+//!
+//! ```rust,ignore
+//! mcp2003a.send_frame_async(0x01, &[0x02, 0x03], 0x05).await.unwrap();
 //! ```
 
 #![no_std]
